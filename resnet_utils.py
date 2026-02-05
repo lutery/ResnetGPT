@@ -28,5 +28,5 @@ class myResnet(nn.Module):
         fc = x.mean(3).mean(2).squeeze()
         att = F.adaptive_avg_pool2d(x,[att_size,att_size]).squeeze().permute(1, 2, 0) # todo 这个的作用
         
-        return fc, att
+        return fc, att # todo 当前代码中fc没啥用
 
