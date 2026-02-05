@@ -3,6 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class myResnet(nn.Module):
+    '''
+    通过主动调用resnet的各个层，来获取中间特征
+    这样可以同时获得全局特征和局部特征
+    '''
+
     def __init__(self, resnet):
         super(myResnet, self).__init__()
         self.resnet = resnet
@@ -21,7 +26,7 @@ class myResnet(nn.Module):
         x = self.resnet.layer4(x)
 
         fc = x.mean(3).mean(2).squeeze()
-        att = F.adaptive_avg_pool2d(x,[att_size,att_size]).squeeze().permute(1, 2, 0)
+        att = F.adaptive_avg_pool2d(x,[att_size,att_size]).squeeze().permute(1, 2, 0) # todo 这个的作用
         
         return fc, att
 

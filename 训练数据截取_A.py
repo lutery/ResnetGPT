@@ -1,3 +1,7 @@
+'''
+todo 如何进行训练数据截取
+'''
+
 import os
 import time
 import torchvision
@@ -16,7 +20,7 @@ import time, threading
 
 _DEVICE_ID = '68UDU17B14011947'
 窗口名称="RNE-AL00"
-模型名称= 'model_weights_O35'
+模型名称= 'model_weights_O35' # 权重名称
 训练数据保存目录='../训练数据样本'
 if not os.path.exists(训练数据保存目录):
    os.makedirs(训练数据保存目录)
@@ -185,10 +189,11 @@ with open(操作查询路径, encoding='utf8') as f:
 
 设备 = MyMNTDevice(_DEVICE_ID)
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
-mod = torchvision.models.resnet101(pretrained=True).eval().cuda(device).requires_grad_(False)
+mod = torchvision.models.resnet101(pretrained=True).eval().cuda(device).requires_grad_(False) # 使用了pytroch的预训练模型
 resnet101 = myResnet(mod)
-config = TransformerConfig()
+config = TransformerConfig() # transformer配置类，存储配置信息
 
+# 构建一个只有解码器的transformer模型
 model = get_model(config, 130, 模型名称)
 
 model = model.cuda(device).requires_grad_(False)
@@ -196,14 +201,10 @@ model = model.cuda(device).requires_grad_(False)
 while True:
     if AI打开 :
 
-
-
-
-
         图片路径=训练数据保存目录+'/{}/'.format(str(int( time.time())) )
-        os.mkdir(图片路径)
+        os.mkdir(图片路径) # 构建保存目录
 
-        记录文件=open(图片路径+'_操作数据.json','w+')
+        记录文件=open(图片路径+'_操作数据.json','w+') # 看来会有一个json文件记录操作数据 todo
 
 
 
@@ -220,10 +221,10 @@ while True:
         time_start=time.time()
         旧指令='移动停'
         for i in range(1000000):
-            if AI打开==False:
+            if AI打开==False: # 这个是用来控制是否停止训练
                 break
             try:
-                imgA = 取图(窗口名称)
+                imgA = 取图(窗口名称) # 截取游戏画面 todo 这个是不是针对 模拟器的
             except:
                 AI打开 = False
                 print('取图失败')
@@ -231,14 +232,14 @@ while True:
 
             计时开始=time.time()
 
-            if 图片张量.shape[0] == 0:
+            if 图片张量.shape[0] == 0: # 针对第一张图像的处理
 
 
-                img = np.array(imgA)
+                img = np.array(imgA) # 将PIL图像转换为numpy数组
 
-                img = torch.from_numpy(img).cuda(device).unsqueeze(0).permute(0, 3, 2, 1) / 255
-                _,out = resnet101(img)
-                图片张量 = out.reshape(1,6*6*2048)
+                img = torch.from_numpy(img).cuda(device).unsqueeze(0).permute(0, 3, 2, 1) / 255 # 转换为tensor并进行预处理，预处理包括调整维度顺序和归一化
+                _,out = resnet101(img) # 获取图像的特征表示
+                图片张量 = out.reshape(1,6*6*2048) # 初始化图片张量
 
             elif 图片张量.shape[0] < 19:
 
@@ -262,14 +263,16 @@ while True:
                 图片张量 = torch.cat((图片张量, out.reshape(1,6*6*2048)), 0)
 
 
-            操作张量 = torch.from_numpy(操作序列.astype(np.int64)).cuda(device)
-            src_mask, trg_mask = create_masks(操作张量.unsqueeze(0), 操作张量.unsqueeze(0), device)
+            操作张量 = torch.from_numpy(操作序列.astype(np.int64)).cuda(device) # 将操作序列转换为tensor
+            # src_mask: 源序列掩码 trg_mask: 目标序列掩码 todo 这两个序列是干嘛的
+            src_mask, trg_mask = create_masks(操作张量.unsqueeze(0), 操作张量.unsqueeze(0), device) 
+            # 输入采集的图片序列和操作序列，获取模型的输出（图片特征序列）
             输出_实际_A = model(图片张量.unsqueeze(0), 操作张量.unsqueeze(0),trg_mask)
 
             LI = 操作张量.contiguous().view(-1)
             # LA=输出_实际_A.view(-1, 输出_实际_A.size(-1))
-            if 计数 % 50 == 0 and 计数!=0:
-
+            if 计数 % 50 == 0 and 计数!=0: # 这个计数是啥？
+                # 实际向设备发送信息
                 设备.发送(购买)
                 设备.发送(加三技能)
                 设备.发送(加二技能)
@@ -283,17 +286,19 @@ while True:
             if 计数 % 1 == 0:
                 time_end = time.time()
 
-
+                # 对输出的结果进行处理，得到最终的操作指令
                 输出_实际_A = F.softmax(输出_实际_A, dim=-1)
-                输出_实际_A = 输出_实际_A[:, - 1, :]
-                抽样 = torch.multinomial(输出_实际_A, num_samples=1)
+                输出_实际_A = 输出_实际_A[:, - 1, :] # 取最后一个时间步的输出
+                抽样 = torch.multinomial(输出_实际_A, num_samples=1) # 根据概率分布进行采样
                 抽样np = 抽样.cpu().numpy()
 
-                指令=数_词表[str(抽样np[0,-1])]
-                指令集=指令.split('_')
+                指令=数_词表[str(抽样np[0,-1])] # 将采样结果转换为对应的操作指令
+                指令集=指令.split('_') # 将指令拆分为移动操作和动作操作
 
                 #操作词典 = {"图片号": "0", "移动操作": "无移动", "动作操作": "无动作"}
                 操作词典['图片号']=str(i)
+                # todo 后续在看，这边无非就是根据按键状态来决定移动操作
+                # todo 以下这边采样了数据，但是没有模型训练，也没有指导性训练，这样的数据有啥用？
                 方向结果=处理方向()
                 if 方向结果!='' or len(操作列)!=0 or 攻击态==True:
                     if 方向结果 == '':

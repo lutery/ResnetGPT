@@ -5,23 +5,37 @@ from torch.autograd import Variable
 
 
 def nopeak_mask(size, device):
+    '''
+    本方法用于创建防止模型看到未来信息的掩码矩阵
+
+    :param size: 操作序列的长度
+    :param device: 设备
+    '''
+
     np_mask = np.triu(np.ones((1, size, size)),
-    k=1).astype('uint8')
+    k=1).astype('uint8') # 创建一个上三角矩阵，主对角线以上的元素为1，其余为0
     variable = Variable
-    np_mask = variable(torch.from_numpy(np_mask) == 0)
+    np_mask = variable(torch.from_numpy(np_mask) == 0) # 转换为布尔类型的tensor，1变为True，0变为False
     np_mask = np_mask.cuda(device)
     return np_mask
 
 def create_masks(src, trg, device):
+    '''
+    本方法中只创建了目标序列的掩码，因为模型中只有解码器部分
     
-    src_mask = (src != -1).unsqueeze(-2)
+    :param src: 源序列
+    :param trg: 目标序列
+    :param device: 设备
+    '''
+    
+    src_mask = (src != -1).unsqueeze(-2) # 源序列的掩码，-1表示填充位置
 
     if trg is not None:
-        trg_mask = (trg != -1).unsqueeze(-2)
+        trg_mask = (trg != -1).unsqueeze(-2) # 目标序列的掩码，-1表示填充位置，我记得第一次操作序列的默认值时-1，估计是将无效位置填充为-1
         trg_mask.cuda(device)
-        size = trg.size(1) # get seq_len for matrix
-        np_mask = nopeak_mask(size, device)
-        trg_mask = trg_mask & np_mask
+        size = trg.size(1) # get seq_len for matrix 获取操作序列的长度
+        np_mask = nopeak_mask(size, device) # 防止模型看到未来信息的掩码
+        trg_mask = trg_mask & np_mask # 将两个掩码进行与操作，得到最终的目标序列掩码，防止模型看到未来信息且屏蔽填充位置
     else:
         trg_mask = None
     return src_mask, trg_mask

@@ -8,6 +8,13 @@ import numpy as np
 
 class Embedder(nn.Module):
     def __init__(self, vocab_size, d_model):
+        '''
+        这个可以去除
+        
+        :param self: Description
+        :param vocab_size: 词表大小 todo
+        :param d_model: 采样的维度 todo
+        '''
         super().__init__()
         self.d_model = d_model
         self.embed = Embedder2(vocab_size, d_model)
@@ -50,10 +57,26 @@ class Embedder2(nn.Module):
     def __init__(self, num_embeddings, embedding_dim, padding_idx=None,
                  max_norm=None, norm_type=2., scale_grad_by_freq=False,
                  sparse=False, _weight=None):
+        '''
+        这里是一个嵌入层的实现，类似于PyTorch自带的nn.Embedding
+        但是增加了一些自定义的初始化逻辑，在训练的时候可以使用预训练的词向量
+        也可以随机初始化词向量
+        
+        :param self: Description
+        :param num_embeddings: 词表大小 todo
+        :param embedding_dim: 采样的维度 todo
+        :param padding_idx: todo
+        :param max_norm: todo
+        :param norm_type: todo
+        :param scale_grad_by_freq: todo
+        :param sparse: todo
+        :param _weight: todo
+        '''
         super(Embedder2, self).__init__()
         self.num_embeddings = num_embeddings
         self.embedding_dim = embedding_dim
         if padding_idx is not None:
+            # 防御性编程，检查padding_idx是否在范围内
             if padding_idx > 0:
                 assert padding_idx < self.num_embeddings, 'Padding_idx must be within num_embeddings'
             elif padding_idx < 0:
@@ -64,19 +87,22 @@ class Embedder2(nn.Module):
         self.norm_type = norm_type
         self.scale_grad_by_freq = scale_grad_by_freq
         if _weight is None:
+            # 随机初始化权重
             np.random.seed(1)
             np数 = np.random.uniform(0, 1, (num_embeddings, embedding_dim))
             self.weight = nn.Parameter(torch.Tensor(np数))
             # self.weight = nn.Parameter(torch.Tensor(num_embeddings, embedding_dim))
             #self.reset_parameters()
         else:
+            # 外部传入权重
             assert list(_weight.shape) == [num_embeddings, embedding_dim], \
                 'Shape of weight does not match num_embeddings and embedding_dim'
             self.weight = nn.Parameter(_weight)
-        self.sparse = sparse
+        self.sparse = sparse 
         a = 0
 
     def reset_parameters(self):
+        # 重置权重
         nn.init.normal_(self.weight)
         if self.padding_idx is not None:
             with torch.no_grad():
